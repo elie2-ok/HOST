@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 PETER DNS - Bot Hôte pour héberger d'autres bots Telegram
-Version complète et fonctionnelle - avec vérification de groupe obligatoire
+Version complète et fonctionnelle - con historial de IA
 """
 
 import telebot
@@ -69,7 +69,11 @@ REQUIRED_CHAT_LINK = "https://t.me/PETERHOSTCANAL"  # Enlace de invitación al g
 # ==================== CONFIGURACIÓN DE GROQ (GRATUITA Y RÁPIDA) ====================
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_API_KEY = "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"  # <-- Tu clave insertada
-GROQ_MODEL = "llama-3.3-70b-versatile"  # O "mixtral-8x7b-32768", "gemma2-9b-it"
+GROQ_MODEL = "mixtral-8x7b-32768"  # Modelo válido en Groq
+
+# ==================== HISTORIAL DE IA ====================
+user_conversations = {}  # Diccionario para almacenar el historial de conversaciones por usuario
+MAX_HISTORY = 10  # Número máximo de mensajes a recordar
 
 # ==================== FIN CONFIGURACIÓN ====================
 
@@ -1469,18 +1473,32 @@ def handle_mpx_command(message):
         bot.reply_to(message, "Bot is currently locked. Try again later.")
         return
 
-    # Verificar si la clave de Groq está configurada
     if not GROQ_API_KEY:
-        bot.reply_to(message, "❌ La API Key de Groq no está configurada. Contacta al administrador.")
-        logger.error("GROQ_API_KEY is empty. Please set your API key.")
+        bot.reply_to(message, "❌ API Key de Groq no configurada.")
         return
 
     if not message.text or len(message.text.split()) < 2:
-        bot.reply_to(message, "Please provide a query after /mpx command.\nExample: `/mpx What is AI?`", parse_mode=None)
+        bot.reply_to(message, "Uso: `/mpx tu pregunta`", parse_mode=None)
         return
 
     query = message.text.split(' ', 1)[1]
     bot.send_chat_action(message.chat.id, 'typing')
+
+    # Inicializar historial si no existe
+    if user_id not in user_conversations:
+        user_conversations[user_id] = []
+
+    # Añadir mensaje del usuario al historial
+    user_conversations[user_id].append({"role": "user", "content": query})
+
+    # Limitar historial a los últimos MAX_HISTORY mensajes
+    if len(user_conversations[user_id]) > MAX_HISTORY * 2:
+        user_conversations[user_id] = user_conversations[user_id][-MAX_HISTORY * 2:]
+
+    # Construir payload con historial completo
+    messages = [
+        {"role": "system", "content": "Eres un asistente útil y conversacional. Responde en el mismo idioma que el usuario."}
+    ] + user_conversations[user_id]
 
     try:
         headers = {
@@ -1490,10 +1508,7 @@ def handle_mpx_command(message):
 
         payload = {
             "model": GROQ_MODEL,
-            "messages": [
-                {"role": "system", "content": "You are a helpful AI assistant. Respond in the same language as the user."},
-                {"role": "user", "content": query}
-            ],
+            "messages": messages,
             "temperature": 0.7,
             "max_tokens": 1024
         }
@@ -1502,37 +1517,36 @@ def handle_mpx_command(message):
         response.raise_for_status()
 
         result = response.json()
-        answer = result.get('choices', [{}])[0].get('message', {}).get('content', 'No response from API')
+        answer = result.get('choices', [{}])[0].get('message', {}).get('content', 'Sin respuesta')
 
-        if not answer or answer.strip() == "":
-            answer = "⚠️ La API devolvió una respuesta vacía. Intenta de nuevo."
+        if not answer.strip():
+            answer = "⚠️ Respuesta vacía de la API."
 
+        # Guardar la respuesta en el historial
+        user_conversations[user_id].append({"role": "assistant", "content": answer})
+
+        # Enviar respuesta (dividir si es muy larga)
         if len(answer) > 4000:
-            for x in range(0, len(answer), 4000):
-                bot.reply_to(message, answer[x:x+4000], parse_mode=None)
+            for chunk in [answer[i:i+4000] for i in range(0, len(answer), 4000)]:
+                bot.reply_to(message, chunk)
         else:
-            bot.reply_to(message, answer, parse_mode=None)
+            bot.reply_to(message, answer)
 
     except requests.exceptions.Timeout:
-        logger.error("Groq API request timed out.")
-        bot.reply_to(message, "⏳ La API de Groq tardó demasiado en responder. Intenta de nuevo.")
+        bot.reply_to(message, "⏳ Tiempo de espera agotado. La API de Groq no responde.")
     except requests.exceptions.HTTPError as e:
-        logger.error(f"Groq API HTTP error: {e}")
-        if e.response.status_code == 401:
-            bot.reply_to(message, "❌ Error de autenticación con Groq. La API Key es inválida.")
-        elif e.response.status_code == 429:
-            bot.reply_to(message, "⚠️ Límite de tasa de Groq excedido. Espera unos segundos y vuelve a intentarlo.")
+        status = e.response.status_code
+        if status == 401:
+            bot.reply_to(message, "❌ Clave API inválida. Revisa GROQ_API_KEY.")
+        elif status == 429:
+            bot.reply_to(message, "⚠️ Límite de peticiones excedido. Espera unos segundos.")
         else:
-            bot.reply_to(message, f"❌ Error en la API de Groq: {e.response.status_code}")
+            bot.reply_to(message, f"❌ Error HTTP {status}: {e.response.text[:200]}")
     except requests.exceptions.RequestException as e:
-        logger.error(f"Groq API request failed: {e}")
-        bot.reply_to(message, "❌ Error conectando con Groq. Intenta de nuevo más tarde.")
-    except json.JSONDecodeError as e:
-        logger.error(f"Error parsing Groq API response: {e}")
-        bot.reply_to(message, "❌ La API devolvió una respuesta inválida. Contacta al administrador.")
+        bot.reply_to(message, f"❌ Error de red: {str(e)[:200]}")
     except Exception as e:
-        logger.error(f"Error in /mpx command: {e}", exc_info=True)
-        bot.reply_to(message, f"❌ Error inesperado: {str(e)}")
+        logger.error(f"Error en /mpx: {e}", exc_info=True)
+        bot.reply_to(message, f"❌ Error inesperado: {str(e)[:200]}")
 
 @bot.message_handler(commands=['start', 'help'])
 def command_send_welcome(message):
