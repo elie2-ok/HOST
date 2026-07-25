@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 PETER DNS - Bot Hôte pour héberger d'autres bots Telegram
-Version complète et fonctionnelle
+Version complète et fonctionnelle - avec vérification de groupe obligatoire
 """
 
 import telebot
@@ -56,15 +56,22 @@ def get_uptime():
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
 # ========== CONFIGURATION ==========
-TOKEN = '8854477587:AAHyc4AQWvRz-tzRiCaT-2o7YYph_x-Zvuk'          # Put your token from @BotFather  # ← Remplace par ton token
+TOKEN = '8854477587:AAHyc4AQWvRz-tzRiCaT-2o7YYph_x-Zvuk'          # Put your token from @BotFather
 OWNER_ID = 8716411086                   # Put your Telegram user ID
 ADMIN_ID = 7898928200                   # Put admin Telegram user ID (can be same as OWNER_ID)
 YOUR_USERNAME = '@PETER_DNS'        # Put your Telegram @username
-UPDATE_CHANNEL = 'https://t.me/PETER_MODS'  # Put your Telegram channel link
+UPDATE_CHANNEL = 'https://t.me/PETERHOSTCHAT'  # Put your Telegram channel link
 
-A4F_API_URL = "https://samuraiapi.in/v1/chat/completions"
-A4F_API_KEY = "sk-NK6SS9tpWghyFJwkZLoCis1sMaF6RwQ5WF09mUoKKR0VKCm7"
-A4F_MODEL = "provider10-claude-sonnet-4-20250514(clinesp)"
+# ==================== GRUPO OBLIGATORIO ====================
+REQUIRED_CHAT_ID = "@PETERHOSTCANAL"        # Username del grupo/canal (con @) o ID numérico (ej: -1001234567890)
+REQUIRED_CHAT_LINK = "https://t.me/PETERHOSTCANAL"  # Enlace de invitación al grupo
+
+# ==================== CONFIGURACIÓN DE GROQ (GRATUITA Y RÁPIDA) ====================
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_API_KEY = "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"  # <-- Tu clave insertada
+GROQ_MODEL = "llama-3.3-70b-versatile"  # O "mixtral-8x7b-32768", "gemma2-9b-it"
+
+# ==================== FIN CONFIGURACIÓN ====================
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_BOTS_DIR = os.path.join(BASE_DIR, 'upload_bots')
@@ -1161,6 +1168,30 @@ def _logic_send_welcome(message):
 
     logger.info(f"Welcome request from user_id: {user_id}, username: @{user_username}")
 
+    # ==================== VERIFICACIÓN DE MEMBRESÍA OBLIGATORIA ====================
+    try:
+        member = bot.get_chat_member(REQUIRED_CHAT_ID, user_id)
+        if member.status not in ['member', 'administrator', 'creator']:
+            # El usuario no es miembro del grupo requerido
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("📢 Unirse al grupo", url=REQUIRED_CHAT_LINK))
+            bot.send_message(
+                chat_id,
+                "⚠️ *Debes unirte a nuestro grupo para usar este bot.*\n\n"
+                "Haz clic en el botón de abajo, únete y luego vuelve a enviar /start.",
+                reply_markup=markup,
+                parse_mode='Markdown'
+            )
+            return
+    except Exception as e:
+        # Si ocurre un error (por ejemplo, el bot no es admin), permitimos el acceso por defecto
+        # pero registramos el error
+        logger.warning(f"No se pudo verificar la membresía para {user_id}: {e}. Permitiendo acceso.")
+        # Si quieres bloquear ante error, descomenta la siguiente línea:
+        # bot.send_message(chat_id, "❌ Error al verificar tu membresía. Contacta al administrador."); return
+
+    # ==================== FIN VERIFICACIÓN ====================
+
     if bot_locked and user_id not in admin_ids:
         bot.send_message(chat_id, "Bot locked by admin. Try later.")
         return
@@ -1438,6 +1469,12 @@ def handle_mpx_command(message):
         bot.reply_to(message, "Bot is currently locked. Try again later.")
         return
 
+    # Verificar si la clave de Groq está configurada
+    if not GROQ_API_KEY:
+        bot.reply_to(message, "❌ La API Key de Groq no está configurada. Contacta al administrador.")
+        logger.error("GROQ_API_KEY is empty. Please set your API key.")
+        return
+
     if not message.text or len(message.text.split()) < 2:
         bot.reply_to(message, "Please provide a query after /mpx command.\nExample: `/mpx What is AI?`", parse_mode=None)
         return
@@ -1447,21 +1484,28 @@ def handle_mpx_command(message):
 
     try:
         headers = {
-            "Authorization": f"Bearer {A4F_API_KEY}",
+            "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
 
         payload = {
-            "model": A4F_MODEL,
-            "messages": [{"role": "user", "content": query}],
-            "temperature": 0.7
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": "You are a helpful AI assistant. Respond in the same language as the user."},
+                {"role": "user", "content": query}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1024
         }
 
-        response = requests.post(A4F_API_URL, headers=headers, json=payload)
+        response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
 
         result = response.json()
         answer = result.get('choices', [{}])[0].get('message', {}).get('content', 'No response from API')
+
+        if not answer or answer.strip() == "":
+            answer = "⚠️ La API devolvió una respuesta vacía. Intenta de nuevo."
 
         if len(answer) > 4000:
             for x in range(0, len(answer), 4000):
@@ -1469,12 +1513,26 @@ def handle_mpx_command(message):
         else:
             bot.reply_to(message, answer, parse_mode=None)
 
+    except requests.exceptions.Timeout:
+        logger.error("Groq API request timed out.")
+        bot.reply_to(message, "⏳ La API de Groq tardó demasiado en responder. Intenta de nuevo.")
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"Groq API HTTP error: {e}")
+        if e.response.status_code == 401:
+            bot.reply_to(message, "❌ Error de autenticación con Groq. La API Key es inválida.")
+        elif e.response.status_code == 429:
+            bot.reply_to(message, "⚠️ Límite de tasa de Groq excedido. Espera unos segundos y vuelve a intentarlo.")
+        else:
+            bot.reply_to(message, f"❌ Error en la API de Groq: {e.response.status_code}")
     except requests.exceptions.RequestException as e:
-        logger.error(f"API request failed: {e}")
-        bot.reply_to(message, "Error connecting to the API. Please try again later.")
+        logger.error(f"Groq API request failed: {e}")
+        bot.reply_to(message, "❌ Error conectando con Groq. Intenta de nuevo más tarde.")
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing Groq API response: {e}")
+        bot.reply_to(message, "❌ La API devolvió una respuesta inválida. Contacta al administrador.")
     except Exception as e:
-        logger.error(f"Error in /mpx command: {e}")
-        bot.reply_to(message, "An error occurred while processing your request.")
+        logger.error(f"Error in /mpx command: {e}", exc_info=True)
+        bot.reply_to(message, f"❌ Error inesperado: {str(e)}")
 
 @bot.message_handler(commands=['start', 'help'])
 def command_send_welcome(message):
