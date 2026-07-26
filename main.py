@@ -69,7 +69,7 @@ REQUIRED_CHAT_LINK = "https://t.me/PETERHOSTCANAL"  # Enlace de invitación al g
 # ==================== CONFIGURACIÓN DE GROQ (GRATUITA Y RÁPIDA) ====================
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_API_KEY = "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"  # <-- Tu clave insertada
-GROQ_MODEL = "mixtral-8x7b-32768"  # Modelo válido en Groq
+GROQ_MODEL = "llama-3.3-70b-versatile"  # ✅ Modelo CORREGIDO (activo y recomendado por Groq)
 
 # ==================== HISTORIAL DE IA ====================
 user_conversations = {}  # Diccionario para almacenar el historial de conversaciones por usuario
