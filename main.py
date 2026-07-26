@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 PETER DNS - Bot Hôte pour héberger d'autres bots Telegram
-Version complète et fonctionnelle - con historial de IA
+Version sans IA (solo host de scripts)
 """
 
 import telebot
@@ -56,26 +56,15 @@ def get_uptime():
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
 # ========== CONFIGURATION ==========
-TOKEN = '8854477587:AAHyc4AQWvRz-tzRiCaT-2o7YYph_x-Zvuk'          # Put your token from @BotFather
-OWNER_ID = 8716411086                   # Put your Telegram user ID
-ADMIN_ID = 7898928200                   # Put admin Telegram user ID (can be same as OWNER_ID)
-YOUR_USERNAME = '@PETER_DNS'        # Put your Telegram @username
-UPDATE_CHANNEL = 'https://t.me/PETERHOSTCHAT'  # Put your Telegram channel link
+TOKEN = '8854477587:AAHyc4AQWvRz-tzRiCaT-2o7YYph_x-Zvuk'
+OWNER_ID = 8716411086
+ADMIN_ID = 7898928200
+YOUR_USERNAME = '@PETER_DNS'
+UPDATE_CHANNEL = 'https://t.me/PETERHOSTCHAT'
 
 # ==================== GRUPO OBLIGATORIO ====================
-REQUIRED_CHAT_ID = "@PETERHOSTCANAL"        # Username del grupo/canal (con @) o ID numérico (ej: -1001234567890)
-REQUIRED_CHAT_LINK = "https://t.me/PETERHOSTCANAL"  # Enlace de invitación al grupo
-
-# ==================== CONFIGURACIÓN DE GROQ (GRATUITA Y RÁPIDA) ====================
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_API_KEY = "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"  # <-- Tu clave insertada
-GROQ_MODEL = "llama-3.3-70b-versatile"  # ✅ Modelo CORREGIDO (activo y recomendado por Groq)
-
-# ==================== HISTORIAL DE IA ====================
-user_conversations = {}  # Diccionario para almacenar el historial de conversaciones por usuario
-MAX_HISTORY = 10  # Número máximo de mensajes a recordar
-
-# ==================== FIN CONFIGURACIÓN ====================
+REQUIRED_CHAT_ID = "@PETERHOSTCANAL"
+REQUIRED_CHAT_LINK = "https://t.me/PETERHOSTCANAL"
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_BOTS_DIR = os.path.join(BASE_DIR, 'upload_bots')
@@ -105,21 +94,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ========== MENÚS DE TECLADO (sin IA y sin segundo uptime) ==========
 COMMAND_BUTTONS_LAYOUT_USER_SPEC = [
-    ["📢 Updates Channel", "⏱ Uptime"],
-    ["📤 Upload File", "📂 Check Files"],
-    ["⚡ Bot Speed", "📊 Statistics"],
-    ["📞 Contact Owner", "🤖 MPX Ai"]
+    ["📢 Updates Channel", "📤 Upload File"],
+    ["📂 Check Files", "⚡ Bot Speed"],
+    ["📊 Statistics", "📞 Contact Owner"],
+    ["💳 Subscriptions"]
 ]
 
 ADMIN_COMMAND_BUTTONS_LAYOUT_USER_SPEC = [
-    ["📢 Updates Channel", "⏱ Uptime"],
-    ["📤 Upload File", "📂 Check Files"],
-    ["⚡ Bot Speed", "📊 Statistics"],
-    ["💳 Subscriptions", "📢 Broadcast"],
-    ["🔒 Lock Bot", "🟢 Running All Code"],
-    ["👑 Admin Panel", "📞 Contact Owner"],
-    ["🤖 MPX Ai", "⏱ Uptime"],
+    ["📢 Updates Channel", "📤 Upload File"],
+    ["📂 Check Files", "⚡ Bot Speed"],
+    ["📊 Statistics", "💳 Subscriptions"],
+    ["📢 Broadcast", "🔒 Lock Bot"],
+    ["🟢 Running All Code", "👑 Admin Panel"],
+    ["📞 Contact Owner"]
 ]
 
 # ==================== FONCTIONS BASE DE DONNÉES ====================
@@ -934,8 +923,7 @@ def create_main_menu_inline(user_id):
         types.InlineKeyboardButton('📂 Check Files', callback_data='check_files'),
         types.InlineKeyboardButton('⚡ Bot Speed', callback_data='speed'),
         types.InlineKeyboardButton('📊 Statistics', callback_data='stats'),
-        types.InlineKeyboardButton('📞 Contact Owner', url=f'https://t.me/{YOUR_USERNAME.replace("@", "")}'),
-        types.InlineKeyboardButton('🤖 MPX AI', callback_data='mpx_ai')
+        types.InlineKeyboardButton('📞 Contact Owner', url=f'https://t.me/{YOUR_USERNAME.replace("@", "")}')
     ]
 
     if user_id in admin_ids:
@@ -953,13 +941,13 @@ def create_main_menu_inline(user_id):
         markup.add(buttons[4], admin_buttons[1])
         markup.add(admin_buttons[2], admin_buttons[4])
         markup.add(admin_buttons[3])
-        markup.add(buttons[5], buttons[6])
+        markup.add(buttons[5])
     else:
         markup.add(buttons[0])
         markup.add(buttons[1], buttons[2])
         markup.add(buttons[3])
         markup.add(buttons[4])
-        markup.add(buttons[5], buttons[6])
+        markup.add(buttons[5])
 
     markup.add(types.InlineKeyboardButton('⏱ Uptime', callback_data='uptime'))
     return markup
@@ -1176,7 +1164,6 @@ def _logic_send_welcome(message):
     try:
         member = bot.get_chat_member(REQUIRED_CHAT_ID, user_id)
         if member.status not in ['member', 'administrator', 'creator']:
-            # El usuario no es miembro del grupo requerido
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("📢 Unirse al grupo", url=REQUIRED_CHAT_LINK))
             bot.send_message(
@@ -1188,13 +1175,7 @@ def _logic_send_welcome(message):
             )
             return
     except Exception as e:
-        # Si ocurre un error (por ejemplo, el bot no es admin), permitimos el acceso por defecto
-        # pero registramos el error
         logger.warning(f"No se pudo verificar la membresía para {user_id}: {e}. Permitiendo acceso.")
-        # Si quieres bloquear ante error, descomenta la siguiente línea:
-        # bot.send_message(chat_id, "❌ Error al verificar tu membresía. Contacta al administrador."); return
-
-    # ==================== FIN VERIFICACIÓN ====================
 
     if bot_locked and user_id not in admin_ids:
         bot.send_message(chat_id, "Bot locked by admin. Try later.")
@@ -1466,87 +1447,7 @@ def _logic_run_all_scripts(message_or_call):
     logger.info(f"Run all scripts finished. Admin: {admin_user_id}. Started: {started_count}. Skipped/Errors: {skipped_files}")
 
 # ==================== COMMANDES MESSAGE ====================
-@bot.message_handler(commands=['mpx'])
-def handle_mpx_command(message):
-    user_id = message.from_user.id
-    if bot_locked and user_id not in admin_ids:
-        bot.reply_to(message, "Bot is currently locked. Try again later.")
-        return
-
-    if not GROQ_API_KEY:
-        bot.reply_to(message, "❌ API Key de Groq no configurada.")
-        return
-
-    if not message.text or len(message.text.split()) < 2:
-        bot.reply_to(message, "Uso: `/mpx tu pregunta`", parse_mode=None)
-        return
-
-    query = message.text.split(' ', 1)[1]
-    bot.send_chat_action(message.chat.id, 'typing')
-
-    # Inicializar historial si no existe
-    if user_id not in user_conversations:
-        user_conversations[user_id] = []
-
-    # Añadir mensaje del usuario al historial
-    user_conversations[user_id].append({"role": "user", "content": query})
-
-    # Limitar historial a los últimos MAX_HISTORY mensajes
-    if len(user_conversations[user_id]) > MAX_HISTORY * 2:
-        user_conversations[user_id] = user_conversations[user_id][-MAX_HISTORY * 2:]
-
-    # Construir payload con historial completo
-    messages = [
-        {"role": "system", "content": "Eres un asistente útil y conversacional. Responde en el mismo idioma que el usuario."}
-    ] + user_conversations[user_id]
-
-    try:
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        payload = {
-            "model": GROQ_MODEL,
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 1024
-        }
-
-        response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-
-        result = response.json()
-        answer = result.get('choices', [{}])[0].get('message', {}).get('content', 'Sin respuesta')
-
-        if not answer.strip():
-            answer = "⚠️ Respuesta vacía de la API."
-
-        # Guardar la respuesta en el historial
-        user_conversations[user_id].append({"role": "assistant", "content": answer})
-
-        # Enviar respuesta (dividir si es muy larga)
-        if len(answer) > 4000:
-            for chunk in [answer[i:i+4000] for i in range(0, len(answer), 4000)]:
-                bot.reply_to(message, chunk)
-        else:
-            bot.reply_to(message, answer)
-
-    except requests.exceptions.Timeout:
-        bot.reply_to(message, "⏳ Tiempo de espera agotado. La API de Groq no responde.")
-    except requests.exceptions.HTTPError as e:
-        status = e.response.status_code
-        if status == 401:
-            bot.reply_to(message, "❌ Clave API inválida. Revisa GROQ_API_KEY.")
-        elif status == 429:
-            bot.reply_to(message, "⚠️ Límite de peticiones excedido. Espera unos segundos.")
-        else:
-            bot.reply_to(message, f"❌ Error HTTP {status}: {e.response.text[:200]}")
-    except requests.exceptions.RequestException as e:
-        bot.reply_to(message, f"❌ Error de red: {str(e)[:200]}")
-    except Exception as e:
-        logger.error(f"Error en /mpx: {e}", exc_info=True)
-        bot.reply_to(message, f"❌ Error inesperado: {str(e)[:200]}")
+# El comando /mpx ha sido eliminado
 
 @bot.message_handler(commands=['start', 'help'])
 def command_send_welcome(message):
@@ -1581,8 +1482,7 @@ BUTTON_TEXT_TO_LOGIC = {
     "📢 Broadcast": _logic_broadcast_init,
     "🔒 Lock Bot": _logic_toggle_lock_bot,
     "🟢 Running All Code": _logic_run_all_scripts,
-    "👑 Admin Panel": _logic_admin_panel,
-    "🤖 MPX AI": lambda m: handle_mpx_command(m)
+    "👑 Admin Panel": _logic_admin_panel
 }
 
 @bot.message_handler(func=lambda message: message.text in BUTTON_TEXT_TO_LOGIC)
@@ -1711,7 +1611,7 @@ def handle_callbacks(call):
     data = call.data
     logger.info(f"Callback: User={user_id}, Data='{data}'")
 
-    if bot_locked and user_id not in admin_ids and data not in ['back_to_main', 'speed', 'stats', 'mpx_ai', 'uptime']:
+    if bot_locked and user_id not in admin_ids and data not in ['back_to_main', 'speed', 'stats', 'uptime']:
         bot.answer_callback_query(call.id, "Bot locked by admin.", show_alert=True)
         return
     try:
@@ -1765,9 +1665,6 @@ def handle_callbacks(call):
             admin_required_callback(call, remove_subscription_init_callback)
         elif data == 'check_subscription':
             admin_required_callback(call, check_subscription_init_callback)
-        elif data == 'mpx_ai':
-            bot.answer_callback_query(call.id)
-            bot.send_message(call.message.chat.id, "Please send your query using the /mpx command followed by your question.\nExample: `/mpx What is AI?`", parse_mode=None)
         elif data == 'uptime':
             bot.answer_callback_query(call.id)
             uptime_str = get_uptime()
