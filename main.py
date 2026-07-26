@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 PETER DNS - Bot Hôte pour héberger d'autres bots Telegram
-Version sans IA (solo host de scripts)
+Version sans IA et avec un seul uptime (inline)
 """
 
 import telebot
@@ -94,7 +94,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ========== MENÚS DE TECLADO (sin IA y sin segundo uptime) ==========
+# ========== MENÚS DE TECLADO (SIN UPTIME) ==========
 COMMAND_BUTTONS_LAYOUT_USER_SPEC = [
     ["📢 Updates Channel", "📤 Upload File"],
     ["📂 Check Files", "⚡ Bot Speed"],
@@ -949,6 +949,7 @@ def create_main_menu_inline(user_id):
         markup.add(buttons[4])
         markup.add(buttons[5])
 
+    # Botón de uptime solo en el menú inline
     markup.add(types.InlineKeyboardButton('⏱ Uptime', callback_data='uptime'))
     return markup
 
@@ -1164,6 +1165,7 @@ def _logic_send_welcome(message):
     try:
         member = bot.get_chat_member(REQUIRED_CHAT_ID, user_id)
         if member.status not in ['member', 'administrator', 'creator']:
+            # El usuario no es miembro del grupo requerido
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("📢 Unirse al grupo", url=REQUIRED_CHAT_LINK))
             bot.send_message(
@@ -1447,8 +1449,6 @@ def _logic_run_all_scripts(message_or_call):
     logger.info(f"Run all scripts finished. Admin: {admin_user_id}. Started: {started_count}. Skipped/Errors: {skipped_files}")
 
 # ==================== COMMANDES MESSAGE ====================
-# El comando /mpx ha sido eliminado
-
 @bot.message_handler(commands=['start', 'help'])
 def command_send_welcome(message):
     _logic_send_welcome(message)
@@ -1477,7 +1477,6 @@ BUTTON_TEXT_TO_LOGIC = {
     "⚡ Bot Speed": _logic_bot_speed,
     "📞 Contact Owner": _logic_contact_owner,
     "📊 Statistics": _logic_statistics,
-    "⏱ Uptime": _logic_uptime,
     "💳 Subscriptions": _logic_subscriptions_panel,
     "📢 Broadcast": _logic_broadcast_init,
     "🔒 Lock Bot": _logic_toggle_lock_bot,
