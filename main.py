@@ -56,7 +56,7 @@ def get_uptime():
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
 # ========== CONFIGURATION ==========
-TOKEN = '8854477587:AAGIcO1uXWxyZQntoFDmOYISBgrdpoENmfg'
+TOKEN = '8854477587:AAFEzslx8mn8DBQAjDMo2u9YpCeVYMrucas'
 OWNER_ID = 8716411086
 ADMIN_ID = 7898928200
 YOUR_USERNAME = '@PETER_DNS'
