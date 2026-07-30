@@ -56,15 +56,15 @@ def get_uptime():
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
 # ========== CONFIGURATION ==========
-TOKEN = '8854477587:AAHyc4AQWvRz-tzRiCaT-2o7YYph_x-Zvuk'
+TOKEN = '8854477587:AAGIcO1uXWxyZQntoFDmOYISBgrdpoENmfg'
 OWNER_ID = 8716411086
 ADMIN_ID = 7898928200
 YOUR_USERNAME = '@PETER_DNS'
-UPDATE_CHANNEL = 'https://t.me/PETERHOSTCHAT'
+UPDATE_CHANNEL = 'https://t.me/PETERHOSTCANAL'
 
 # ==================== GRUPO OBLIGATORIO ====================
 REQUIRED_CHAT_ID = "@PETERHOSTCANAL"
-REQUIRED_CHAT_LINK = "https://t.me/PETERHOSTCANAL"
+REQUIRED_CHAT_LINK = "https://t.me/PETERHOSTCHAT"
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_BOTS_DIR = os.path.join(BASE_DIR, 'upload_bots')
